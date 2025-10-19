@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <title>我的第一个待办页面</title>
+  </head>
+  <body>
+    <h1>📋 分类待办事项</h1>
+    
+    <!-- 添加任务的区域 -->
+    <div>
+      <input type="text" id="taskInput" placeholder="输入新的待办事项……">
+
+      <!-- 新增：分类选择 -->
+      <select id="categorySelect">
+        <option value="工作">工作</option>
+        <option value="学习">学习</option>
+        <option value="生活">生活</option>
+        <option value="购物">购物</option>
+        <option value="其他">其他</option>
+      </select>
+
+      <button id="addButton">添加任务</button>
+    </div>
+
+    <!-- 新增：分类筛选标签 -->
+    <div id="filters">
+      <button data-filter="全部">全部</button>
+      <button data-filter="工作">工作</button>
+      <button data-filter="学习">学习</button>
+      <button data-filter="生活">生活</button>
+      <button data-filter="购物">购物</button>
+      <button data-filter="其他">其他</button>
+    </div>
+
+    <!-- 自定义分类：新增表单 -->
+    <div id="customCatForm">
+      <input type="text" id="newCategoryInput" placeholder="输入新分类名称">
+      <button id="addCategoryBtn">添加分类</button>
+    </div>
+
+    <!-- 自定义分类：展示区（稍后用 JS 填内容） -->
+    <div id="customCats">暂无自定义分类</div>
+
+    <div id="currentFilter">当前筛选：全部</div>
+
+    <!-- 显示任务的区域 -->
+    <ul id="taskList">
+      <!-- 将来任务会出现在这里 -->
+    </ul>
+
+    <!-- 统计显示 -->
+    <div id="stats">总数：0 ｜ 已完成：0</div>
+
+    <script>
+      // —— 应用状态（唯一真相）——
+      let tasks = []; // 每个任务：{ id: number, text: string, completed: boolean }
+      const STORAGE_KEY = 'my_todos_v1';
+      // 新增：当前筛选（默认“全部”）
+      let currentFilter = '全部';
+      let customCategories = [];
+      const STORAGE_KEY_CATS = 'my_todos_cats_v1';
+      const RESERVED = new Set(['全部','工作','学习','生活','购物','其他']);
+
+      function getVisible() {
+        return (currentFilter === '全部')
+          ? tasks
+          : tasks.filter(t => t.category === currentFilter);
+      }
+
+      function computeStats(arr) {
+        const total = arr.length;
+        const done = arr.filter(t => t.completed).length;
+        return { total, done };
+      }
+
+      function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      }
+
+      function updateStats() {
+        const statsDiv = document.getElementById('stats');
+        const total = tasks.length;
+        const done = tasks.filter(t => t.completed).length;
+        statsDiv.textContent = `总数：${total} ｜ 已完成：${done}`;
+      }
+
+      function renderFilters() {
+        // 1) 给“添加任务”的下拉 select 追加自定义分类
+        const select = document.getElementById('categorySelect');
+
+        // 固定选项（保持你现有那 5 个）
+        const fixedValues = ['工作','学习','生活','购物','其他'];
+
+        // 先重建固定项
+        select.innerHTML = '';
+        fixedValues.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v;
+          opt.textContent = v;
+          select.appendChild(opt);
+        });
+
+        // 再追加自定义项
+        customCategories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat;
+          opt.textContent = cat;
+          select.appendChild(opt);
+        });
+
+        // 2) 把自定义分类渲染到展示区（每个带一个删除按钮）
+        const wrap = document.getElementById('customCats');
+        wrap.innerHTML = '';
+        if (customCategories.length === 0) {
+          wrap.textContent = '暂无自定义分类';
+        } else {
+          customCategories.forEach(cat => {
+            const holder = document.createElement('span');
+
+            // 点击分类名：切换筛选到该分类
+            const gotoBtn = document.createElement('button');
+            gotoBtn.textContent = cat;
+            gotoBtn.addEventListener('click', () => {
+              currentFilter = cat;
+              render();
+            });
+
+            // 删除按钮
+            const delBtn = document.createElement('button');
+            delBtn.textContent = '×';
+            delBtn.title = `删除分类「${cat}」`;
+            delBtn.addEventListener('click', () => deleteCustomCategory(cat));
+
+            holder.appendChild(gotoBtn);
+            holder.appendChild(delBtn);
+
+            // 简单加个空格分隔
+            wrap.appendChild(holder);
+            wrap.appendChild(document.createTextNode(' '));
+          });
+        }
+      }
+      
+      function render() {
+        list.innerHTML = '';
+
+        // 计算可见列表
+        const visible = getVisible();
+
+        // 空态
+        if (visible.length === 0) {
+          const li = document.createElement('li');
+          li.textContent = '暂无任务（或当前分类下暂无任务）';
+          li.style.color = '#777';
+          list.appendChild(li);
+        } else {
+          // 渲染可见项
+          visible.forEach(task => {
+            const li = document.createElement('li');
+
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.checked = task.completed;
+
+            const span = document.createElement('span');
+            span.textContent = `[${task.category}] ${task.text}`;
+            if (task.completed) {
+              span.style.textDecoration = 'line-through';
+              span.style.color = '#777';
+            }
+
+            const del = document.createElement('button');
+            del.textContent = '删除';
+
+            check.addEventListener('change', () => {
+              task.completed = check.checked;
+              save();
+              render(); // 只需 render
+            });
+
+            del.addEventListener('click', () => {
+              tasks = tasks.filter(t => t.id !== task.id);
+              save();
+              render(); // 只需 render
+            });
+
+            li.appendChild(check);
+            li.appendChild(span);
+            li.appendChild(del);
+            list.appendChild(li);
+          });
+        }
+
+        // 更新“当前筛选”提示
+        if (currentFilterDiv) {
+          currentFilterDiv.textContent = `当前筛选：${currentFilter}`;
+        }
+
+        // —— 统一更新两种统计 —— 
+        const statsCurrentDiv = document.getElementById('statsCurrent');
+        const { total: tc, done: dc } = computeStats(visible);
+        if (statsCurrentDiv) {
+          statsCurrentDiv.textContent = `当前分类：总数：${tc} ｜ 已完成：${dc}`;
+        }
+
+        const statsDiv = document.getElementById('stats');
+        const { total, done } = computeStats(tasks);
+        if (statsDiv) {
+          statsDiv.textContent = `总数：${total} ｜ 已完成：${done}`;
+        }
+      }
+    
+      // 获取页面元素
+      const input = document.getElementById('taskInput'); // 输入框
+      const button = document.getElementById('addButton'); // 按钮
+      const list = document.getElementById('taskList'); // 列表
+      const categorySelect = document.getElementById('categorySelect');
+      const currentFilterDiv = document.getElementById('currentFilter');
+      const filtersDiv = document.getElementById('filters');
+
+
+      // 给按钮绑定点击事件
+      button.addEventListener('click', function () {
+        const text = input.value.trim();
+        if (!text) { alert('请输入内容'); return; }
+
+        // 往“状态”里加一条
+        tasks.push({
+          id: Date.now(),
+          text,
+          completed: false,
+          category: categorySelect.value   // 新增字段
+        });
+
+        // 保存 → 渲染
+        save();
+        render();
+
+        input.value = '';
+        input.focus();
+      });
+
+      // 按 Enter 直接添加任务
+      input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+              button.click(); // 触发“添加任务”和后续渲染/统计
+          }
+      });
+
+      document.addEventListener('DOMContentLoaded', () => {
+        // 1) 先从 localStorage 读取
+        const raw = localStorage.getItem(STORAGE_KEY);
+        tasks = raw ? JSON.parse(raw) : [];
+
+        // 读取自定义分类
+        try {
+          const rawCats = localStorage.getItem(STORAGE_KEY_CATS);
+          customCategories = rawCats ? JSON.parse(rawCats) : [];
+        } catch {
+          customCategories = [];
+          localStorage.removeItem(STORAGE_KEY_CATS);
+        }
+        
+        renderFilters();
+
+        // 2) 渲染 + 统计
+        render();
+      });
+
+      // 事件委托：filters 容器里点到哪个按钮都能拿到 data-filter
+      filtersDiv.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-filter]');
+        if (!btn) return;
+        currentFilter = btn.dataset.filter; // 读取 data-filter 的值
+        render();
+      });
+
+    </script>
+  </body>
+</html>
