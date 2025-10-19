@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <title>我的第一个待办页面</title>
+  </head>
+  <body>
+    <h1>📋 分类待办事项</h1>
+    
+    <!-- 添加任务的区域 -->
+    <div>
+      <input type="text" id="taskInput" placeholder="输入新的待办事项……">
+      <button id="addButton">添加任务</button>
+    </div>
+
+    <!-- 显示任务的区域 -->
+    <ul id="taskList">
+      <!-- 将来任务会出现在这里 -->
+    </ul>
+
+    <script>
+      // 1. 获取页面元素
+      const input = document.getElementById('taskInput'); // 输入框
+      const button = document.getElementById('addButton'); // 按钮
+      const list = document.getElementById('taskList'); // 列表
+
+      // 2. 给按钮绑定点击事件
+      button.addEventListener('click', function() {
+        const text = input.value.trim(); // 取输入的文字并去除空格
+        if (text === '') {
+          alert('请输入内容'); // 空的话提示一下
+          return;
+        }
+
+        // 3. 创建一个新的 <li> 元素
+        const li = document.createElement('li');
+
+        // 创建任务文字的 span
+        const span = document.createElement('span');
+        span.textContent = text;
+
+        // 创建删除按钮
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '删除';
+
+        // 点击删除按钮时，移除这个 li
+        delBtn.addEventListener('click', function() {
+            list.removeChild(li);
+        });
+
+        // 把文字和按钮放进 li
+        li.appendChild(span);
+        li.appendChild(delBtn);
+
+        // 再把 li 放到列表里
+        list.appendChild(li);
+
+        // 4. 清空输入框
+        input.value = '';
+        input.focus();
+      });
+    </script>
+  </body>
+</html>

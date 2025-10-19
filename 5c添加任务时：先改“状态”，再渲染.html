@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <title>我的第一个待办页面</title>
+  </head>
+  <body>
+    <h1>📋 分类待办事项</h1>
+    
+    <!-- 添加任务的区域 -->
+    <div>
+      <input type="text" id="taskInput" placeholder="输入新的待办事项……">
+      <button id="addButton">添加任务</button>
+    </div>
+
+    <!-- 显示任务的区域 -->
+    <ul id="taskList">
+      <!-- 将来任务会出现在这里 -->
+    </ul>
+
+    <!-- 统计显示 -->
+    <div id="stats">总数：0 ｜ 已完成：0</div>
+
+    <script>
+      // —— 应用状态（唯一真相）——
+      let tasks = []; // 每个任务：{ id: number, text: string, completed: boolean }
+      const STORAGE_KEY = 'my_todos_v1';
+
+      function updateStats() {
+          const statsDiv = document.getElementById('stats');
+
+          // 总任务数：就是 li 的个数
+          const total = list.children.length;
+
+          // 已完成数：数一数 li 里复选框被勾选的数量
+          let done = 0;
+          // 遍历所有 li，检查每条里的 checkbox
+          for (const li of list.children) {
+              const box = li.querySelector('input[type="checkbox"]');
+              if (box && box.checked) done++;
+          }
+
+          statsDiv.textContent = `总数：${total} ｜ 已完成：${done}`;
+      }
+
+      // 获取页面元素
+      const input = document.getElementById('taskInput'); // 输入框
+      const button = document.getElementById('addButton'); // 按钮
+      const list = document.getElementById('taskList'); // 列表
+
+      // 给按钮绑定点击事件
+      button.addEventListener('click', function () {
+        const text = input.value.trim();
+        if (!text) { alert('请输入内容'); return; }
+
+        // 往“状态”里加一条
+        tasks.push({
+          id: Date.now(),
+          text,
+          completed: false
+        });
+
+        // 保存 → 重新渲染 → 统计
+        save();
+        render();
+        updateStats();
+
+        input.value = '';
+        input.focus();
+      });
+
+      // 按 Enter 直接添加任务
+      input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+              button.click(); // 触发“添加任务”和后续渲染/统计
+          }
+      });
+
+      document.addEventListener('DOMContentLoaded', () => {
+        // 1) 先从 localStorage 读取
+        const raw = localStorage.getItem(STORAGE_KEY);
+        tasks = raw ? JSON.parse(raw) : [];
+
+        // 2) 渲染 + 统计
+        render();
+        updateStats();
+      });
+
+    </script>
+  </body>
+</html>
