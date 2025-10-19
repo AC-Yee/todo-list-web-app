@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <title>我的第一个待办页面</title>
+  </head>
+  <body>
+    <h1>📋 分类待办事项</h1>
+    
+    <!-- 添加任务的区域 -->
+    <div>
+      <input type="text" id="taskInput" placeholder="输入新的待办事项……">
+      <button id="addButton">添加任务</button>
+    </div>
+
+    <!-- 显示任务的区域 -->
+    <ul id="taskList">
+      <!-- 将来任务会出现在这里 -->
+    </ul>
+
+    <!-- 统计显示 -->
+    <div id="stats">总数：0 ｜ 已完成：0</div>
+
+    <script>
+      function updateStats() {
+          const statsDiv = document.getElementById('stats');
+
+          // 总任务数：就是 li 的个数
+          const total = list.children.length;
+
+          // 已完成数：数一数 li 里复选框被勾选的数量
+          let done = 0;
+          // 遍历所有 li，检查每条里的 checkbox
+          for (const li of list.children) {
+              const box = li.querySelector('input[type="checkbox"]');
+              if (box && box.checked) done++;
+          }
+
+          statsDiv.textContent = `总数：${total} ｜ 已完成：${done}`;
+      }
+
+      // 1. 获取页面元素
+      const input = document.getElementById('taskInput'); // 输入框
+      const button = document.getElementById('addButton'); // 按钮
+      const list = document.getElementById('taskList'); // 列表
+
+      // 2. 给按钮绑定点击事件
+      button.addEventListener('click', function() {
+        const text = input.value.trim(); // 取输入的文字并去除空格
+        if (text === '') {
+          alert('请输入内容'); // 空的话提示一下
+          return;
+        }
+
+        // 3. 创建一个新的 <li> 元素
+        // 创建一个新的 <li> 元素
+        const li = document.createElement('li');
+
+        // (1) 创建完成勾选框
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+
+        // (2) 任务文字
+        const span = document.createElement('span');
+        span.textContent = text;
+
+        // (3) 删除按钮
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '删除';
+
+        // (4) 复选框的行为：切换完成样式 & 更新统计
+        checkbox.addEventListener('change', function() {
+            if (checkbox.checked) {
+                // 不用 CSS 文件，先用行内样式表达“完成”的视觉
+                span.style.textDecoration = 'line-through';
+                span.style.color = '#777';
+            } else {
+                span.style.textDecoration = 'none';
+                span.style.color = '';
+            }
+            updateStats(); // 勾选状态变化时更新统计
+        });
+
+        // (5) 删除按钮的行为：删除 li & 更新统计
+        delBtn.addEventListener('click', function() {
+            list.removeChild(li);
+            updateStats();
+        });
+
+        // 把元素组装进 li
+        li.appendChild(checkbox);
+        li.appendChild(span);
+        li.appendChild(delBtn);
+
+        // 把 li 放到列表里
+        list.appendChild(li);
+
+        // 新增任务后也更新一次统计
+        updateStats();
+
+        // 4. 清空输入框
+        input.value = '';
+        input.focus();
+      });
+
+      // 5. 按 Enter 直接添加任务
+      input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+              button.click(); // 触发“添加任务”和后续渲染/统计
+          }
+      });
+
+    </script>
+  </body>
+</html>
