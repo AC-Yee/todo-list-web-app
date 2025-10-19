@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <title>📋 分类待办事项</title>
+
+  <style>
+    :root{
+      --blue:#3498db;
+      --blue-d:#2980b9;
+      --bg:#f5f7fa;
+      --muted:#777;
+      --red:#e74c3c;
+      --red-d:#c0392b;
+      --text:#333;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin: 0;
+      background: linear-gradient(135deg, #dbeafe, #fef9c3); /* 蓝→浅黄柔和渐变 */
+      background-attachment: fixed; /* 背景固定不随滚动 */
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      line-height: 1.6;
+      color: var(--text);
+      padding: 40px 20px; /* 让上下留白更宽 */
+    }
+    /* 外层容器（卡片壳） */
+    .container-panel{
+      max-width: 840px;
+      margin: 0 auto;
+      background: #ffffffcc; /* 半透明白，衬托背景 */
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      padding: 32px 24px;
+      backdrop-filter: blur(10px); /* 增加轻微玻璃磨砂效果 */
+    }
+    h1{ margin:0 0 14px; font-size:24px; color:#2c3e50; }
+
+    /* 顶部“添加任务”行 */
+    .row{ display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 8px; }
+    .row input[type="text"]{
+      flex:1; min-width:240px; padding:10px 12px; border:1px solid #ddd; border-radius:8px;
+    }
+    .row select{
+      padding:10px 12px; border:1px solid #ddd; border-radius:8px;
+    }
+    .btn{
+      padding:10px 14px; border:0; border-radius:8px; background:var(--blue); color:#fff; cursor:pointer;
+      transition:background .2s ease;
+    }
+    .btn:hover{ background:var(--blue-d); }
+
+    /* 分类筛选按钮区 */
+    #filters{ display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
+    #filters button{
+      padding:8px 12px; border:1px solid #ddd; border-radius:20px; background:#fff; cursor:pointer;
+      transition: all .2s ease;
+    }
+    #filters button:hover{ transform:translateY(-1px); }
+    #filters button.is-active{ background:var(--blue); color:#fff; border-color:var(--blue); }
+
+    /* 自定义分类行（输入 + chips展示） */
+    #customCatForm{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
+    #customCats{ display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 12px; color:var(--muted); }
+    .chip{
+      display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:16px; background:#eee;
+    }
+    .chip .chip-del{
+      background:var(--red); color:#fff; border:0; border-radius:12px; padding:2px 8px; cursor:pointer;
+    }
+    .chip .chip-del:hover{ background:var(--red-d); }
+
+    /* 任务列表卡片化 */
+    #taskList{ list-style:none; padding-left:0; margin:14px 0; }
+    #taskList li{
+      display:flex; align-items:center; gap:10px; padding:12px; margin-bottom:10px;
+      background:#f8f9fa; border-radius:10px; border-left:4px solid var(--blue);
+      box-shadow: 0 2px 6px rgba(0,0,0,.05); transition: transform .15s ease, box-shadow .15s ease;
+    }
+    #taskList li:hover{ transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+
+    /* 文本完成态用类名控制（比行内样式干净） */
+    .task-text{ flex:1; word-break: break-word; }
+    .task-text.completed{ text-decoration:line-through; color:var(--muted); }
+
+    /* 删除按钮 */
+    .btn-del{
+      font-size:12px; padding:6px 10px; border:0; border-radius:6px; background:var(--red); color:#fff; cursor:pointer;
+      transition: background .2s ease;
+    }
+    .btn-del:hover{ background:var(--red-d); }
+
+    /* 统计行 */
+    #stats, #statsCurrent{ color:#555; margin:6px 0; }
+
+    /* 空态 */
+    .empty{ color:var(--muted); text-align:center; padding:24px 8px; }
+
+    /* 响应式收敛 */
+    @media (max-width:600px){
+      .row{ flex-direction:column; }
+    }
+  </style>
+
+  </head>
+  <body>
+    <div class="container-panel">
+      <h1>📋 分类待办事项</h1>
+      
+      <!-- 添加任务的区域 -->
+      <div class="row">
+        <input type="text" id="taskInput" placeholder="输入新的待办事项……">
+
+        <!-- 新增：分类选择 -->
+        <select id="categorySelect">
+          <option value="工作">工作</option>
+          <option value="学习">学习</option>
+          <option value="生活">生活</option>
+          <option value="购物">购物</option>
+          <option value="其他">其他</option>
+        </select>
+
+        <button id="addButton" class="btn">添加任务</button>
+      </div>
+
+      <!-- 新增：分类筛选标签 -->
+      <div id="filters">
+        <button data-filter="全部">全部</button>
+        <button data-filter="工作">工作</button>
+        <button data-filter="学习">学习</button>
+        <button data-filter="生活">生活</button>
+        <button data-filter="购物">购物</button>
+        <button data-filter="其他">其他</button>
+      </div>
+
+      <!-- 自定义分类：新增表单 -->
+      <div id="customCatForm">
+        <input type="text" id="newCategoryInput" placeholder="输入新分类名称">
+        <button id="addCategoryBtn">添加分类</button>
+      </div>
+
+      <!-- 自定义分类：展示区（稍后用 JS 填内容） -->
+      <div id="customCats">暂无自定义分类</div>
+
+      <div id="currentFilter">当前筛选：全部</div>
+
+      <!-- 显示任务的区域 -->
+      <ul id="taskList">
+        <!-- 将来任务会出现在这里 -->
+      </ul>
+
+      <!-- 统计显示 -->
+      <div id="stats">总数：0 ｜ 已完成：0</div>
+    </div>
+
+    <script>
+      // —— 应用状态（唯一真相）——
+      let tasks = []; // 每个任务：{ id: number, text: string, completed: boolean }
+      const STORAGE_KEY = 'my_todos_v1';
+      // 新增：当前筛选（默认“全部”）
+      let currentFilter = '全部';
+      let customCategories = [];
+      const STORAGE_KEY_CATS = 'my_todos_cats_v1';
+      const RESERVED = new Set(['全部','工作','学习','生活','购物','其他']);
+
+      function highlightActiveFilter() {
+        const buttons = document.querySelectorAll('#filters button[data-filter]');
+        buttons.forEach(btn => {
+          if (btn.dataset.filter === currentFilter) btn.classList.add('is-active');
+          else btn.classList.remove('is-active');
+        });
+      }
+
+      function getVisible() {
+        return (currentFilter === '全部')
+          ? tasks
+          : tasks.filter(t => t.category === currentFilter);
+      }
+
+      function computeStats(arr) {
+        const total = arr.length;
+        const done = arr.filter(t => t.completed).length;
+        return { total, done };
+      }
+
+      function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      }
+
+      function updateStats() {
+        const statsDiv = document.getElementById('stats');
+        const total = tasks.length;
+        const done = tasks.filter(t => t.completed).length;
+        statsDiv.textContent = `总数：${total} ｜ 已完成：${done}`;
+      }
+
+      function deleteCustomCategory(cat) {
+        if (!customCategories.includes(cat)) return;
+        const ok = confirm(`确定删除分类「${cat}」吗？\n该分类下的任务将自动移动到「其他」。`);
+        if (!ok) return;
+
+        // 1) 从自定义分类列表移除
+        customCategories = customCategories.filter(c => c !== cat);
+        saveCats();
+
+        // 2) 迁移任务：凡是这个分类的，改成“其他”
+        let changed = false;
+        tasks = tasks.map(t => {
+          if (t.category === cat) {
+            changed = true;
+            return { ...t, category: '其他' };
+          }
+          return t;
+        });
+        if (changed) save();
+
+        // 3) 如果当前就在这个分类的筛选里，切回“全部”
+        if (currentFilter === cat) currentFilter = '全部';
+
+        // 4) 统一重渲染
+        renderFilters();
+        render();
+      }
+
+      function renderFilters() {
+        // 1) 给“添加任务”的下拉 select 追加自定义分类
+        const select = document.getElementById('categorySelect');
+
+        // 固定选项（保持你现有那 5 个）
+        const fixedValues = ['工作','学习','生活','购物','其他'];
+
+        // 先重建固定项
+        select.innerHTML = '';
+        fixedValues.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v;
+          opt.textContent = v;
+          select.appendChild(opt);
+        });
+
+        // 再追加自定义项
+        customCategories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat;
+          opt.textContent = cat;
+          select.appendChild(opt);
+        });
+
+        // 2) 把自定义分类渲染到展示区（每个带一个删除按钮）
+        const wrap = document.getElementById('customCats');
+        wrap.innerHTML = '';
+        if (customCategories.length === 0) {
+          wrap.textContent = '暂无自定义分类';
+        } else {
+          customCategories.forEach(cat => {
+            const holder = document.createElement('span');
+
+            // 点击分类名：切换筛选到该分类
+            const gotoBtn = document.createElement('button');
+            gotoBtn.textContent = cat;
+            gotoBtn.addEventListener('click', () => {
+              currentFilter = cat;
+              render();
+            });
+
+            // 删除按钮
+            const delBtn = document.createElement('button');
+            delBtn.textContent = '×';
+            delBtn.title = `删除分类「${cat}」`;
+            delBtn.addEventListener('click', () => deleteCustomCategory(cat));
+
+            holder.appendChild(gotoBtn);
+            holder.appendChild(delBtn);
+
+            // 简单加个空格分隔
+            wrap.appendChild(holder);
+            wrap.appendChild(document.createTextNode(' '));
+          });
+        }
+      }
+      
+      function render() {
+        list.innerHTML = '';
+
+        // 计算可见列表
+        const visible = getVisible();
+
+        // 空态
+        if (visible.length === 0) {
+          const li = document.createElement('li');
+          li.innerHTML = '<div class="empty">暂无任务（或当前分类下暂无任务）</div>';
+          list.appendChild(li);
+        } else {
+          // 渲染可见项
+          visible.forEach(task => {
+            const li = document.createElement('li');
+
+            const check = document.createElement('input');
+            check.type = 'checkbox';
+            check.checked = task.completed;
+
+            const span = document.createElement('span');
+            span.className = 'task-text';
+            span.textContent = `[${task.category}] ${task.text}`;
+            if (task.completed) span.classList.add('completed');
+
+            const del = document.createElement('button');
+            del.textContent = '删除';
+            del.className = 'btn-del';
+
+            check.addEventListener('change', () => {
+              task.completed = check.checked;
+              save();
+              render(); // 只需 render
+            });
+
+            del.addEventListener('click', () => {
+              tasks = tasks.filter(t => t.id !== task.id);
+              save();
+              render(); // 只需 render
+            });
+
+            li.appendChild(check);
+            li.appendChild(span);
+            li.appendChild(del);
+            list.appendChild(li);
+          });
+        }
+
+        // 更新“当前筛选”提示
+        if (currentFilterDiv) {
+          currentFilterDiv.textContent = `当前筛选：${currentFilter}`;
+        }
+
+        // —— 统一更新两种统计 —— 
+        const statsCurrentDiv = document.getElementById('statsCurrent');
+        const { total: tc, done: dc } = computeStats(visible);
+        if (statsCurrentDiv) {
+          statsCurrentDiv.textContent = `当前分类：总数：${tc} ｜ 已完成：${dc}`;
+        }
+
+        const statsDiv = document.getElementById('stats');
+        const { total, done } = computeStats(tasks);
+        if (statsDiv) {
+          statsDiv.textContent = `总数：${total} ｜ 已完成：${done}`;
+        }
+      }
+    
+      // 获取页面元素
+      const input = document.getElementById('taskInput'); // 输入框
+      const button = document.getElementById('addButton'); // 按钮
+      const list = document.getElementById('taskList'); // 列表
+      const categorySelect = document.getElementById('categorySelect');
+      const currentFilterDiv = document.getElementById('currentFilter');
+      const filtersDiv = document.getElementById('filters');
+
+
+      // 给按钮绑定点击事件
+      button.addEventListener('click', function () {
+        const text = input.value.trim();
+        if (!text) { alert('请输入内容'); return; }
+
+        // 往“状态”里加一条
+        tasks.push({
+          id: Date.now(),
+          text,
+          completed: false,
+          category: categorySelect.value   // 新增字段
+        });
+
+        // 保存 → 渲染
+        save();
+        render();
+
+        input.value = '';
+        input.focus();
+      });
+
+      const newCategoryInput = document.getElementById('newCategoryInput');
+      const addCategoryBtn = document.getElementById('addCategoryBtn');
+
+      function saveCats() {
+        localStorage.setItem(STORAGE_KEY_CATS, JSON.stringify(customCategories));
+      }
+
+      addCategoryBtn.addEventListener('click', () => {
+        const name = (newCategoryInput.value || '').trim();
+        if (!name) { alert('请输入分类名称'); return; }
+        if (RESERVED.has(name)) { alert('这是保留分类，不能重复添加'); return; }
+        if (customCategories.includes(name)) { alert('该分类已存在'); return; }
+
+        customCategories.push(name);
+        saveCats();
+        renderFilters();  // 更新下拉和展示区
+        newCategoryInput.value = '';
+      });
+
+      // 回车添加
+      newCategoryInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addCategoryBtn.click();
+      });
+
+      // 按 Enter 直接添加任务
+      input.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+              button.click(); // 触发“添加任务”和后续渲染/统计
+          }
+      });
+
+      document.addEventListener('DOMContentLoaded', () => {
+        // 1) 先从 localStorage 读取
+        const raw = localStorage.getItem(STORAGE_KEY);
+        tasks = raw ? JSON.parse(raw) : [];
+
+        // 读取自定义分类
+        try {
+          const rawCats = localStorage.getItem(STORAGE_KEY_CATS);
+          customCategories = rawCats ? JSON.parse(rawCats) : [];
+        } catch {
+          customCategories = [];
+          localStorage.removeItem(STORAGE_KEY_CATS);
+        }
+        
+        renderFilters();
+
+        // 2) 渲染 + 统计
+        render();
+        // 页面加载完也初始化一次高亮
+        highlightActiveFilter();
+      });
+
+      // 事件委托：filters 容器里点到哪个按钮都能拿到 data-filter
+      filtersDiv.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-filter]');
+        if (!btn) return;
+        currentFilter = btn.dataset.filter;
+        highlightActiveFilter(); // 新增
+        render();
+      });
+
+    </script>
+  </body>
+</html>
